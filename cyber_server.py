@@ -34,9 +34,9 @@ class Server:
 
     def play_audio(self):
         pygame.mixer.init()
-        pygame.mixer.music.load(r"C:\Users\maria\Downloads\ZAZ - Je veux (Clip officiel).mp3")
+        pygame.mixer.music.load("C:\\Users\\maria\\OneDrive\\Dokumenti\\סייבר חומרים\\alin\\intro.mp3")
         pygame.mixer.music.play()
-        pygame.mixer.music.queue(r"C:\Users\maria\Downloads\Angels Calling.mp3")
+        pygame.mixer.music.queue("C:\\Users\\maria\\OneDrive\\Dokumenti\\סייבר חומרים\\alin\\montana skies.mp3")
 
     def update_gui_log(self, message):
         self.log_text.config(state=tk.NORMAL)
@@ -61,7 +61,7 @@ class Server:
         details_window.geometry("400x350")
 
         # Create and store image reference in the window itself to prevent garbage collection
-        bg_image = ImageTk.PhotoImage(Image.open(r"C:\Users\maria\OneDrive\Pictures\logo_cyber.jpeg"))
+        bg_image = ImageTk.PhotoImage(Image.open(r"C:\Users\maria\OneDrive\Dokumenti\סייבר חומרים\alin\logo_cyber.jpeg"))
         bg_label = Label(details_window, image=bg_image)
         bg_label.image = bg_image  # Keep a reference to prevent garbage collection
         bg_label.place(relwidth=1, relheight=1)
@@ -88,7 +88,7 @@ class Server:
         history_window.geometry("600x400")
 
         # Create and store image reference in the window itself
-        bg_image = ImageTk.PhotoImage(Image.open(r"C:\Users\maria\OneDrive\Pictures\logo_cyber.jpeg"))
+        bg_image = ImageTk.PhotoImage(Image.open(r"C:\Users\maria\OneDrive\Dokumenti\סייבר חומרים\alin\logo_cyber.jpeg"))
         bg_label = Label(history_window, image=bg_image)
         bg_label.image = bg_image  # Keep a reference to prevent garbage collection
         bg_label.place(relwidth=1, relheight=1)
@@ -195,7 +195,7 @@ class Server:
         splash.overrideredirect(True)
 
         # Load and keep reference to splash image
-        logo = Image.open(r"C:\Users\maria\Downloads\Leonardo_Phoenix_10_A_whimsical_illustration_of_a_small_Pokmon_0.jpg").resize((400, 400))
+        logo = Image.open(r"C:\Users\maria\OneDrive\Dokumenti\סייבר חומרים\alin\poke.jpg").resize((400, 400))
         logo_photo = ImageTk.PhotoImage(logo)
         label = Label(splash, image=logo_photo)
         label.image = logo_photo  # Keep reference
@@ -212,7 +212,7 @@ class Server:
         self.root.geometry("500x500")
 
         # Load and keep reference to background image
-        self.bg_image = ImageTk.PhotoImage(Image.open(r"C:\Users\maria\Downloads\Leonardo_Phoenix_10_Illustrate_a_futuristic_vision_of_the_sql_0 (2).jpg"))
+        self.bg_image = ImageTk.PhotoImage(Image.open(r"C:\Users\maria\OneDrive\Dokumenti\סייבר חומרים\alin\mizperamon1.png"))
         bg_label = Label(self.root, image=self.bg_image)
         bg_label.place(relwidth=1, relheight=1)
 
