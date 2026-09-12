@@ -1,20 +1,23 @@
 import socket
 import os
 import random
+from getpass import getpass
 from PIL import Image
 from constants import IP, PORT, CHUNK_SIZE
 from encrypt import Encryption
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class Client:
     def __init__(self):
-        self.decrypted_list_paths = [
-            os.path.join(BASE_DIR, "mail_photo.jpg")
-        ]
+        media_dir = os.path.dirname(os.path.abspath(__file__))
+        self.decrypted_list_paths = sorted(
+            os.path.join(media_dir, filename)
+            for filename in os.listdir(media_dir)
+            if filename.startswith("hidden_") and filename.lower().endswith(".jpg")
+        )
         self.usual_images = [
-            os.path.join(BASE_DIR, "IMG_3495.jpg"),
-            os.path.join(BASE_DIR, "REST1.png"),
-            os.path.join(BASE_DIR, "mitzperamon3.jpg")
+            os.path.join(media_dir, "poke.jpg"),
+            os.path.join(media_dir, "logo_cyber.jpeg"),
+            os.path.join(media_dir, "mizperamon1.png")
         ]
         self.client_socket = None
         self.encryptor = Encryption()
@@ -27,6 +30,39 @@ class Client:
         except Exception as e:
             print(f"Error connecting to server: {e}")
             self.client_socket = None
+
+    def choose_authentication(self):
+        print("\n1: Register")
+        print("2: Login")
+        action_choice = input("Choose an option: ").strip()
+
+        if action_choice not in ("1", "2"):
+            print("Authentication error: choose 1 for Register or 2 for Login.")
+            return {}
+
+        username = input("Username: ").strip()
+        password = getpass("Password: ")
+        if not username or not password:
+            print("Authentication error: username and password are required.")
+            return {}
+
+        action = "REGISTER" if action_choice == "1" else "LOGIN"
+        return {"action": action, "username": username, "password": password}
+
+    def authenticate(self):
+        while True:
+            credentials = self.choose_authentication()
+            if not credentials:
+                return False
+            self.encryptor.send_encrypted_message(self.client_socket, credentials["action"])
+            self.encryptor.send_encrypted_message(self.client_socket, credentials["username"])
+            self.encryptor.send_encrypted_message(self.client_socket, credentials["password"])
+            response = self.encryptor.receive_encrypted_message(self.client_socket)
+            status, message = response.split("|", 1)
+            print(message)
+            if status == "LOGIN_SUCCESS":
+                return True
+            print(f"Authentication error: {message}" if status == "ERROR" else message)
 
     def send_client_id(self):
         client_id = str(random.randint(1, 6))
@@ -99,10 +135,12 @@ class Client:
             return
 
         with open(media_path, "rb") as file:
-            data_to_hide = file.read()
+            data = file.read()
 
+        # Send length encrypted
         self.encryptor.send_encrypted_message(self.client_socket, str(len(data)))
 
+        # Send raw binary data (unencrypted)
         self.encryptor.send_encrypted_message(self.client_socket, data)
 
         # Receive results
@@ -112,11 +150,8 @@ class Client:
         for i in range(num_images):
             image_size = int(self.encryptor.receive_encrypted_message(self.client_socket))
             self.encryptor.send_encrypted_message(self.client_socket, "ACK")
-            image_data = self.encryptor.receive_encrypted_data(self.client_socket)
 
-            image_data = b''
-            while len(image_data) < image_size:
-                image_data += self.client_socket.recv(4096)
+            image_data = self.encryptor.receive_encrypted_data(self.client_socket)
 
             decoded_file_path = f"decoded_image_{i + 1}.jpg"
             with open(decoded_file_path, "wb") as file:
@@ -135,7 +170,9 @@ class Client:
         if not self.client_socket:
             return
 
-        self.send_client_id()
+        if not self.authenticate():
+            self.client_socket.close()
+            return
 
         while True:
             menu = self.receive_menu()

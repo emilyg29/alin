@@ -31,10 +31,7 @@ class ImageExtractor:
         media_data = b''
 
         while len(media_data) < media_size:
-            chunk = self.client_socket.recv(4096)
-            if not chunk:
-                break
-            media_data += chunk
+            media_data += self.encryptor.receive_encrypted_data(self.client_socket)
 
         return media_data
 
@@ -65,12 +62,14 @@ class ImageExtractor:
                 break
             end_index += 2
 
-            output_file = f"hidden_{self.user_id}_{counter}_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+            media_dir = os.path.dirname(os.path.abspath(__file__))
+            output_filename = f"hidden_{self.user_id}_{counter}_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+            output_file = os.path.join(media_dir, output_filename)
             with open(output_file, "wb") as hidden_file:
                 hidden_file.write(media_data[start_index:end_index])
 
             self.found_images.append(output_file)
-            self.db_manager.insert_decrypted_media(self.user_id, 1, output_file)
+            self.db_manager.insert_decrypted_media(self.user_id, 1, output_filename)
             counter += 1
 
             start_index = media_data.find(self.jpeg_start, end_index)
@@ -89,7 +88,7 @@ class ImageExtractor:
                 ack = self.encryptor.receive_encrypted_message(self.client_socket)
                 if ack != "ACK":
                     break
-                self.client_socket.sendall(data)
+                self.encryptor.send_encrypted_data(self.client_socket, data)
 
     def run(self):
         """
@@ -107,3 +106,4 @@ class ImageExtractor:
             return 1, "image", self.found_images[0]
         else:
             return 1, "image", ""
+
