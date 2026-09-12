@@ -1,5 +1,8 @@
 from db_manager import DatabaseManager
 
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 def create_all_tables(db_manager):
     """
     Create all necessary tables for the application using DatabaseManager instance.
@@ -29,10 +32,11 @@ def populate_media_menu(db_manager):
     Args:
         db_manager: An initialized DatabaseManager instance
     """
+    
     predefined_media = [
-        (1, r"C:\Users\Mamriot_User\Desktop\secret_service_project\JPG\Ransom.jpg", None, None),
-        (2, r"C:\Users\Mamriot_User\Desktop\secret_service_project\JPG\cover1_image.jpg", None, None),
-        (3, None, None, r"C:\Users\Mamriot_User\Desktop\secret_service_project\MP4\video.mp4")
+        (1, os.path.join(BASE_DIR, "Ransom.jpg"), None, None),
+        (2, os.path.join(BASE_DIR, "cover1_image.jpg"), None, None),
+        (3, None, None, os.path.join(BASE_DIR, "video.mp4"))
     ]
 
     existing_rows = db_manager.get_all_rows("media_menu")

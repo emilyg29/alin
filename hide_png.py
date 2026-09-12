@@ -34,19 +34,16 @@ class DataHider:
         return next(item for item in media_menu if str(item[0]) == selected_id)
 
     def receive_data_to_hide(self):
-        """
-        Receives the size and the actual binary data from the client.
+    # 1. קבלת הגודל הצפוי של התמונה
+            size = int(self.encryptor.receive_encrypted_message(self.client_socket))
+    
+            data = b''
+            while len(data) < size:
+                data += self.encryptor.receive_encrypted_data(self.client_socket)
+        
+            return data
 
-        :return: The binary data sent by the client.
-        """
-        size = int(self.encryptor.receive_encrypted_message(self.client_socket))
-        data = b''
-        while len(data) < size:
-            chunk = self.client_socket.recv(4096)
-            if not chunk:
-                break
-            data += chunk
-        return data
+
 
     def create_hidden_file(self, media_path, data_to_hide):
         """

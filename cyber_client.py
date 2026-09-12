@@ -4,16 +4,17 @@ import random
 from PIL import Image
 from constants import IP, PORT, CHUNK_SIZE
 from encrypt import Encryption
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class Client:
     def __init__(self):
         self.decrypted_list_paths = [
-            r"C:\Users\maria\OneDrive\Dokumenti\סייבר חומרים\stegonagraphy\mail_photo.jpg"
+            os.path.join(BASE_DIR, "mail_photo.jpg")
         ]
         self.usual_images = [
-            r"C:\Users\maria\OneDrive\Pictures\chateau\IMG_3495.jpg",
-            r"C:\Users\maria\OneDrive\Pictures\chateau\REST1.png",
-            r"C:\Users\maria\OneDrive\Pictures\mitzperamon3.jpg"
+            os.path.join(BASE_DIR, "IMG_3495.jpg"),
+            os.path.join(BASE_DIR, "REST1.png"),
+            os.path.join(BASE_DIR, "mitzperamon3.jpg")
         ]
         self.client_socket = None
         self.encryptor = Encryption()
@@ -74,8 +75,7 @@ class Client:
         # Send file size (encrypted)
         self.encryptor.send_encrypted_message(self.client_socket, str(len(data_to_hide)))
 
-        # Send file content (raw, unencrypted)
-        self.client_socket.sendall(data_to_hide)
+        self.encryptor.send_encrypted_data(self.client_socket, data_to_hide)
 
         # Receive server response (encrypted)
         response = self.encryptor.receive_encrypted_message(self.client_socket)
@@ -99,13 +99,11 @@ class Client:
             return
 
         with open(media_path, "rb") as file:
-            data = file.read()
+            data_to_hide = file.read()
 
-        # Send length encrypted
         self.encryptor.send_encrypted_message(self.client_socket, str(len(data)))
 
-        # Send raw binary data (unencrypted)
-        self.client_socket.sendall(data)
+        self.encryptor.send_encrypted_message(self.client_socket, data)
 
         # Receive results
         num_images = int(self.encryptor.receive_encrypted_message(self.client_socket))
@@ -114,6 +112,7 @@ class Client:
         for i in range(num_images):
             image_size = int(self.encryptor.receive_encrypted_message(self.client_socket))
             self.encryptor.send_encrypted_message(self.client_socket, "ACK")
+            image_data = self.encryptor.receive_encrypted_data(self.client_socket)
 
             image_data = b''
             while len(image_data) < image_size:

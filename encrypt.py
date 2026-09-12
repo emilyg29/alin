@@ -78,35 +78,26 @@ class Encryption:
         sock.sendall(len(encrypted_bytes).to_bytes(4, byteorder='big'))  # Send message length (4 bytes)
         sock.sendall(encrypted_bytes)
 
-    def receive_encrypted_message(self, sock) -> str:
+    def receive_data_to_hide(self):
         """
-        Receives and decrypts a message from a socket
-        
-        Documentation:
-        This function receives an encrypted message from the provided socket,
-        decrypts it, and returns the original message as a string.
-        It first reads 4 bytes to determine the message length, then reads the encrypted message.
-        
-        Args:
-            sock: Socket object to receive data from
-            
-        Returns:
-            str: Decrypted message
-            
-        Returns empty string if no data is received
+        Receives the encrypted binary data from the client and decrypts it.
+
+        :return: The decrypted binary data.
         """
-        raw_length = sock.recv(4)
-        if not raw_length:
-            return ""
-        message_length = int.from_bytes(raw_length, byteorder='big')
-        data = b''
-        while len(data) < message_length:
-            chunk = sock.recv(min(CHUNK_SIZE, message_length - len(data)))
+        # 1. קבלת גודל המידע המוצפן
+        size = int(self.encryptor.receive_encrypted_message(self.client_socket))
+        encrypted_data = b''
+        
+        # 2. איסוף הנתונים המוצפנים מה-socket
+        while len(encrypted_data) < size:
+            chunk = self.client_socket.recv(4096)
             if not chunk:
                 break
-            data += chunk
-        decrypted = self.decrypt_data(data.decode())
-        return decrypted.decode()
+            encrypted_data += chunk
+
+        # 3. פענוח הנתונים המוצפנים בחזרה לקובץ המקורי
+        decrypted_data = self.encryptor.decrypt_bytes(encrypted_data)
+        return decrypted_data
 
 # Example usage:
 # encryptor = Encryption()
