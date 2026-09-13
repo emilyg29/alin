@@ -1,10 +1,11 @@
 import socket
 import os
 import random
-from getpass import getpass
 from PIL import Image
 from constants import IP, PORT, CHUNK_SIZE
 from encrypt import Encryption
+import tkinter as tk
+from tkinter import messagebox
 
 class Client:
     def __init__(self):
@@ -32,23 +33,66 @@ class Client:
             self.client_socket = None
 
     def choose_authentication(self):
-        print("\n1: Register")
-        print("2: Login")
-        action_choice = input("Choose an option: ").strip()
+        credentials = {}
 
-        if action_choice not in ("1", "2"):
-            print("Authentication error: choose 1 for Register or 2 for Login.")
-            return {}
+        window = tk.Tk()
+        window.title("MASKER Authentication")
+        window.geometry("350x230")
+        window.resizable(False, False)
 
-        username = input("Username: ").strip()
-        password = getpass("Password: ")
-        if not username or not password:
-            print("Authentication error: username and password are required.")
-            return {}
+        tk.Label(
+            window,
+            text="MASKER",
+            font=("Arial", 20, "bold")
+        ).pack(pady=10)
 
-        action = "REGISTER" if action_choice == "1" else "LOGIN"
-        return {"action": action, "username": username, "password": password}
+        tk.Label(window, text="Username").pack()
+        username_entry = tk.Entry(window, width=30)
+        username_entry.pack(pady=5)
 
+        tk.Label(window, text="Password").pack()
+        password_entry = tk.Entry(window, width=30, show="*")
+        password_entry.pack(pady=5)
+
+        def submit(action):
+            username = username_entry.get().strip()
+            password = password_entry.get()
+
+            if not username or not password:
+                messagebox.showerror(
+                    "Authentication Error",
+                    "Username and password are required.",
+                    parent=window
+                )
+                return
+
+            credentials["action"] = action
+            credentials["username"] = username
+            credentials["password"] = password
+            window.destroy()
+
+        buttons_frame = tk.Frame(window)
+        buttons_frame.pack(pady=15)
+
+        tk.Button(
+            buttons_frame,
+            text="Register",
+            width=12,
+            command=lambda: submit("REGISTER")
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            buttons_frame,
+            text="Login",
+            width=12,
+            command=lambda: submit("LOGIN")
+        ).pack(side=tk.LEFT, padx=5)
+
+        username_entry.focus()
+        window.mainloop()
+
+        return credentials
+    
     def authenticate(self):
         while True:
             credentials = self.choose_authentication()
@@ -57,13 +101,29 @@ class Client:
             self.encryptor.send_encrypted_message(self.client_socket, credentials["action"])
             self.encryptor.send_encrypted_message(self.client_socket, credentials["username"])
             self.encryptor.send_encrypted_message(self.client_socket, credentials["password"])
-            response = self.encryptor.receive_encrypted_message(self.client_socket)
+            response = self.encryptor.receive_encrypted_message(
+                self.client_socket
+            )
             status, message = response.split("|", 1)
-            print(message)
-            if status == "LOGIN_SUCCESS":
-                return True
-            print(f"Authentication error: {message}" if status == "ERROR" else message)
 
+            if status == "LOGIN_SUCCESS":
+                messagebox.showinfo(
+                    "Login",
+                    message
+                )
+                return True
+
+            if status == "REGISTERED":
+                messagebox.showinfo(
+                    "Register",
+                    message
+                )
+            else:
+                messagebox.showerror(
+                    "Authentication Error",
+                    message
+                )
+                
     def send_client_id(self):
         client_id = str(random.randint(1, 6))
         print("The client id ", client_id)
