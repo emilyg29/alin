@@ -19,10 +19,9 @@ from encrypt import Encryption
 class Server:
     def __init__(self):
         # Initialize database connection
-        self.db_manager = DatabaseManager("localhost", "root", "dg308205", "mysql")
+        self.db_manager = DatabaseManager("localhost", "root", "emilygrois29", "mysql")
         create_all_tables(self.db_manager)
         populate_media_menu(self.db_manager)
-        self.db_manager.normalize_decrypted_media_paths()
         
         # Initialize encryption
         self.encryptor = Encryption()
@@ -242,7 +241,7 @@ class Server:
                         total_actions += 1
                         total_uploaded_files += 1
                         hidden_data_files += 1
-                        self.db_manager.update_row("cliaents", "client_id", client_id,
+                        self.db_manager.update_row("clients", "client_id", client_id,
                                                    ["total_sent_media", "total_uploaded_files", "hidden_data_files"],
                                                    [total_actions, total_uploaded_files, hidden_data_files])
                         self.db_manager.insert_decrypted_media(client_id, media_type_id, path)
@@ -283,7 +282,7 @@ class Server:
             threading.Thread(target=self.handle_client, args=(client_socket,), daemon=True).start()
 
     def create_gui(self):
-        #self.play_audio()
+        self.play_audio()
         
         # Create splash screen
         splash = Toplevel()

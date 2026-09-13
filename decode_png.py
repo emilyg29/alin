@@ -106,4 +106,3 @@ class ImageExtractor:
             return 1, "image", self.found_images[0]
         else:
             return 1, "image", ""
-
