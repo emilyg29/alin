@@ -1,6 +1,7 @@
 from datetime import datetime
 import os
 from encrypt import Encryption
+from constants import HIDDEN_MARKER
 
 class DataHider:
     """
@@ -31,8 +32,18 @@ class DataHider:
         menu_str = "\n".join([f"{item[0]}: {item[1] or item[2] or item[3]}" for item in media_menu])
         self.encryptor.send_encrypted_message(self.client_socket, menu_str)
 
-        selected_id = self.encryptor.receive_encrypted_message(self.client_socket)
-        return next(item for item in media_menu if str(item[0]) == selected_id)
+        selected_id = self.encryptor.receive_encrypted_message(
+            self.client_socket
+        )
+
+        if selected_id == "CANCEL":
+            return None
+
+        return next(
+            item
+            for item in media_menu
+            if str(item[0]) == selected_id
+        )
 
     def receive_data_to_hide(self):
         """
@@ -64,7 +75,7 @@ class DataHider:
             media_data = media_file.read()
 
         with open(output_path, "wb") as output_file:
-            output_file.write(media_data + data_to_hide)
+            output_file.write(media_data + HIDDEN_MARKER + data_to_hide)
 
         return output_path
 

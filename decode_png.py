@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from encrypt import Encryption
+from constants import HIDDEN_MARKER
 
 class ImageExtractor:
     """
@@ -48,32 +49,44 @@ class ImageExtractor:
         return temp_path
 
     def extract_images(self, media_data):
-        """
-        Searches for JPEG start and end markers and extracts embedded images.
+            """
+            Extracts the single JPEG file stored after HIDDEN_MARKER.
+            """
+            marker_index = media_data.find(HIDDEN_MARKER)
 
-        :param media_data: raw binary data from the media file
-        """
-        start_index = media_data.find(self.jpeg_start)
-        counter = 1
+            if marker_index == -1:
+                return
 
-        while start_index != -1:
-            end_index = media_data.find(self.jpeg_end, start_index)
+            payload_start = marker_index + len(HIDDEN_MARKER)
+            hidden_image_data = media_data[payload_start:]
+
+            if not hidden_image_data.startswith(self.jpeg_start):
+                return
+
+            end_index = hidden_image_data.rfind(self.jpeg_end)
+
             if end_index == -1:
-                break
-            end_index += 2
+                return
+
+            hidden_image_data = hidden_image_data[:end_index + 2]
 
             media_dir = os.path.dirname(os.path.abspath(__file__))
-            output_filename = f"hidden_{self.user_id}_{counter}_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+            output_filename = (
+                f"hidden_{self.user_id}_1_"
+                f"{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+            )
             output_file = os.path.join(media_dir, output_filename)
+
             with open(output_file, "wb") as hidden_file:
-                hidden_file.write(media_data[start_index:end_index])
+                hidden_file.write(hidden_image_data)
 
             self.found_images.append(output_file)
-            self.db_manager.insert_decrypted_media(self.user_id, 1, output_filename)
-            counter += 1
 
-            start_index = media_data.find(self.jpeg_start, end_index)
-
+            self.db_manager.insert_decrypted_media(
+                self.user_id,
+                1,
+                output_filename
+            )
     def send_results(self):
         """
         Sends the number of found images to the client,

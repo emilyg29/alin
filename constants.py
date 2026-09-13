@@ -11,4 +11,4 @@ DB_CONFIG = {
     "password": "emilygrois29",
     "database": "mysql"
 }
-    
+HIDDEN_MARKER = b"MASKER_HIDDEN_DATA_START"    

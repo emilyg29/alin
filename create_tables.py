@@ -37,9 +37,8 @@ def create_all_tables(db_manager):
 def populate_media_menu(db_manager):
     """Populate the media menu table with predefined data if it is empty."""
     predefined_media = [
-        (1, os.path.join(BASE_DIR, "Ransom.jpg"), None, None),
-        (2, os.path.join(BASE_DIR, "cover1_image.jpg"), None, None),
-        (3, None, None, os.path.join(BASE_DIR, "video.mp4"))
+        (1, "poke.jpg", None, None),
+        (2, "logo_cyber.jpeg", None, None)
     ]
 
     existing_rows = db_manager.get_all_rows("media_menu")

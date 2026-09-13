@@ -1,11 +1,10 @@
 import socket
 import os
-import random
 from PIL import Image
 from constants import IP, PORT, CHUNK_SIZE
 from encrypt import Encryption
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 
 class Client:
     def __init__(self):
@@ -123,13 +122,7 @@ class Client:
                     "Authentication Error",
                     message
                 )
-                
-    def send_client_id(self):
-        client_id = str(random.randint(1, 6))
-        print("The client id ", client_id)
-        self.encryptor.send_encrypted_message(self.client_socket, client_id)
-        server_response = self.encryptor.receive_encrypted_message(self.client_socket)
-        print(server_response)
+
 
     def receive_menu(self):
         try:
@@ -143,41 +136,80 @@ class Client:
 
     def handle_hide_option(self):
         print("\nYou chose to hide data.")
-        
-        # Receive media menu
-        media_menu = self.encryptor.receive_encrypted_message(self.client_socket)
+
+        media_menu = self.encryptor.receive_encrypted_message(
+            self.client_socket
+        )
+
         if "No media options available." in media_menu:
-            print("No media options available to hide data. Returning to menu.")
+            print("No media options available. Returning to menu.")
             return
 
         print("\nAvailable media to hide data in:\n")
         print(media_menu)
 
-        # Select media and inform server
-        selected_media_id = str(random.randint(1, 4))
-        self.encryptor.send_encrypted_message(self.client_socket, selected_media_id)
+        valid_media_ids = {
+            line.split(":", 1)[0].strip()
+            for line in media_menu.splitlines()
+            if ":" in line
+        }
 
-        data_to_hide_path = random.choice(self.usual_images)
-        print("Data to hide:", data_to_hide_path)
+        while True:
+            selected_media_id = input(
+                "Choose media ID: "
+            ).strip()
 
-        if not os.path.exists(data_to_hide_path):
-            print("File to hide does not exist. Returning to menu.")
+            if selected_media_id in valid_media_ids:
+                break
+
+            print("Invalid media ID. Choose an option from the menu.")
+
+        data_to_hide_path = filedialog.askopenfilename(
+            title="Choose a JPEG image to hide",
+            initialdir=os.path.dirname(os.path.abspath(__file__)),
+            filetypes=[
+                ("JPEG images", "*.jpg *.jpeg")
+            ]
+        )
+
+        if (
+            not data_to_hide_path
+            or not os.path.exists(data_to_hide_path)
+        ):
+            self.encryptor.send_encrypted_message(
+                self.client_socket,
+                "CANCEL"
+            )
+            print("Hide operation cancelled. Returning to menu.")
             return
 
-        # Read binary file content
+        print("Data to hide:", data_to_hide_path)
+
+        self.encryptor.send_encrypted_message(
+            self.client_socket,
+            selected_media_id
+        )
+
         with open(data_to_hide_path, "rb") as file:
             data_to_hide = file.read()
 
-        # Send file size (encrypted)
-        self.encryptor.send_encrypted_message(self.client_socket, str(len(data_to_hide)))
+        self.encryptor.send_encrypted_message(
+            self.client_socket,
+            str(len(data_to_hide))
+        )
 
-        self.encryptor.send_encrypted_data(self.client_socket, data_to_hide)
+        self.encryptor.send_encrypted_data(
+            self.client_socket,
+            data_to_hide
+        )
 
-        # Receive server response (encrypted)
-        response = self.encryptor.receive_encrypted_message(self.client_socket)
+        response = self.encryptor.receive_encrypted_message(
+            self.client_socket
+        )
         print(response)
 
         hidden_media_path = response.split("in ")[-1].strip()
+
         if os.path.exists(hidden_media_path):
             try:
                 img = Image.open(hidden_media_path)
@@ -187,8 +219,19 @@ class Client:
 
     def handle_decode_option(self):
         print("\nYou chose to decode data.")
-        media_path = random.choice(self.decrypted_list_paths)
-        print("Decrypted file chosen:", media_path)
+        media_path = filedialog.askopenfilename(
+            title="Choose a file to decode",
+            initialdir=os.path.dirname(os.path.abspath(__file__)),
+            filetypes=[
+                ("JPEG images", "*.jpg *.jpeg")
+            ]
+        )
+
+        if not media_path:
+            print("No file was selected. Returning to menu.")
+            return
+
+        print("File chosen for decoding:", media_path)
 
         if not os.path.exists(media_path):
             print("File does not exist. Returning to menu.")
@@ -233,14 +276,19 @@ class Client:
         if not self.authenticate():
             self.client_socket.close()
             return
+        welcome_message = self.encryptor.receive_encrypted_message(
+            self.client_socket
+        )
+        print(welcome_message)
 
         while True:
             menu = self.receive_menu()
             if not menu:
                 break
 
-            option = str(random.randint(1, 3))
-            print("Chosen option:", option)
+            option = input(
+                "Choose option (1 = Hide, 2 = Decode, 3 = Logout): "
+            ).strip()
             self.encryptor.send_encrypted_message(self.client_socket, option)
 
             if option == "1":

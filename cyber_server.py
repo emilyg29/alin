@@ -289,6 +289,8 @@ class Server:
                         self.db_manager.update_row("clients", "client_id", client_id,
                                                    ["total_sent_media", "total_uploaded_files", "hidden_data_files"],
                                                    [total_actions, total_uploaded_files, hidden_data_files])
+                        self.update_client_list()
+                        self.update_all_clients_list()
                 elif option == "2":
                     extractor = ImageExtractor(client_socket, self.db_manager, client_id)
                     media_id, media_type, path = extractor.run()
@@ -318,6 +320,8 @@ class Server:
                             decoded_files
                         ]
                     )
+                    self.update_client_list()
+                    self.update_all_clients_list()
                 elif option == "3":
                     self.update_gui_log(f"Client {client_id} disconnected.")
                     break
