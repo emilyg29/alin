@@ -52,6 +52,20 @@ class Client:
         tk.Label(window, text="Password").pack()
         password_entry = tk.Entry(window, width=30, show="*")
         password_entry.pack(pady=5)
+        show_password = tk.BooleanVar(value=False)
+        
+        def toggle_password():
+            if show_password.get():
+                password_entry.config(show="")
+            else:
+                password_entry.config(show="*")
+
+        tk.Checkbutton(
+            window,
+            text="Show password",
+            variable=show_password,
+            command=toggle_password
+        ).pack()
 
         def submit(action):
             username = username_entry.get().strip()
