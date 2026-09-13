@@ -245,7 +245,29 @@ class DatabaseManager:
             print(f"Media record inserted: User ID={user_id}, Media Type={media_type_id}, Path={path}")
         else:
             print("Table `decrypted_media` does not exist.")
-    
+
+    def start_login_session(self, client_id):
+        """Save a new login and return its unique login ID."""
+        cursor = self.conn.cursor()
+        query = """
+            INSERT INTO login_history (client_id, login_time)
+            VALUES (%s, %s)
+        """
+        cursor.execute(query, (client_id, datetime.now()))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def end_login_session(self, login_id):
+        """Save the logout time for one specific login."""
+        cursor = self.conn.cursor()
+        query = """
+            UPDATE login_history
+            SET logout_time = %s
+            WHERE login_id = %s
+        """
+        cursor.execute(query, (datetime.now(), login_id))
+        self.conn.commit()
+        
     def close(self):
         """Close the database connection"""
         if self.conn:

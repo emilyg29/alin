@@ -31,6 +31,7 @@ class Server:
         self.root.withdraw()
         self.log_text = None
         self.client_listbox = None
+        self.all_clients_listbox = None
         self.bg_image = None
         self.client_details_images = {}
         self.connected_users = {}
@@ -53,15 +54,51 @@ class Server:
 
     def update_client_list(self):
         self.client_listbox.delete(0, tk.END)
+
         with self.connected_users_lock:
-            connected_client_ids = set(self.connected_users)
-        clients = self.db_manager.get_all_rows("clients")
-        for client in clients:
-            client_id = str(client[0])
-            status = "CONNECTED" if client_id in connected_client_ids else "offline"
+            connected_client_ids = list(self.connected_users.keys())
+
+        for client_id in connected_client_ids:
+            client_rows = self.db_manager.get_rows_with_value(
+                "clients",
+                "client_id",
+                client_id
+            )
+
+            if not client_rows:
+                continue
+
+            client = client_rows[0]
             self.client_listbox.insert(
                 tk.END,
-                f"{client_id} | {status} | uploaded: {client[6]} | hidden data: {client[7]}"
+                f"{client_id} | CONNECTED | "
+                f"uploaded: {client[6]} | "
+                f"hidden data: {client[7]} | "
+                f"decoded: {client[8]}"
+            )
+
+    def update_all_clients_list(self):
+        self.all_clients_listbox.delete(0, tk.END)
+
+        with self.connected_users_lock:
+            connected_client_ids = set(self.connected_users.keys())
+
+        clients = self.db_manager.get_all_rows("clients")
+
+        for client in clients:
+            client_id = str(client[0])
+            status = (
+                "CONNECTED"
+                if client_id in connected_client_ids
+                else "OFFLINE"
+            )
+
+            self.all_clients_listbox.insert(
+                tk.END,
+                f"{client_id} | {status} | "
+                f"uploaded: {client[6]} | "
+                f"hidden data: {client[7]} | "
+                f"decoded: {client[8]}"
             )
 
     def show_selected_client_details(self):
@@ -112,9 +149,12 @@ class Server:
             if not username or not password:
                 self.encryptor.send_encrypted_message(client_socket, "ERROR|Username and password are required.")
                 continue
+            username_hash = hashlib.sha256(
+                username.strip().lower().encode("utf-8")
+            ).hexdigest()
 
             cursor = self.db_manager.conn.cursor()
-            cursor.execute("SELECT user_id, password_hash FROM users WHERE username = %s", (username,))
+            cursor.execute("SELECT user_id, password_hash FROM users WHERE username_hash = %s", (username_hash,))
             user = cursor.fetchone()
 
             if action == "REGISTER":
@@ -126,8 +166,8 @@ class Server:
                     "sha256", password.encode(), salt.encode(), 120000
                 ).hex()
                 cursor.execute(
-                    "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
-                    (username, f"{salt}${password_hash}")
+                    "INSERT INTO users (username_hash, password_hash) VALUES (%s, %s)",
+                    (username_hash, f"{salt}${password_hash}")
                 )
                 self.db_manager.conn.commit()
                 self.encryptor.send_encrypted_message(
@@ -187,6 +227,7 @@ class Server:
 
     def handle_client(self, client_socket):
         client_id = 'unknown'
+        login_id = None
         try:
             client_id = self.authenticate_client(client_socket)
             client_ip, client_port = client_socket.getpeername()
@@ -194,7 +235,7 @@ class Server:
             existing_client = self.db_manager.get_rows_with_value("clients", "client_id", client_id)
 
             if existing_client:
-                db_ip, db_port, _, _, total_actions, total_uploaded_files, hidden_data_files = existing_client[0][1:8]
+                db_ip, db_port, _, _, total_actions, total_uploaded_files, hidden_data_files, decoded_files = existing_client[0][1:9]
                 if db_ip == client_ip and db_port == str(client_port):
                     self.db_manager.update_row(
                         "clients", "client_id", client_id,
@@ -219,15 +260,19 @@ class Server:
                 total_actions = 0
                 total_uploaded_files = 0
                 hidden_data_files = 0
+                decoded_files = 0
+            login_id = self.db_manager.start_login_session(client_id)
 
             with self.connected_users_lock:
                 self.connected_users[client_id] = {
                     "socket": client_socket,
                     "ip": client_ip,
                     "port": client_port,
+                    "login_id": login_id
                 }
             self.update_gui_log(f"Client {client_id} connected - Status: {client_status}")
             self.update_client_list()
+            self.update_all_clients_list()
 
             while True:
                 self.encryptor.send_encrypted_message(client_socket, "\n1: Hide Data\n2: Decode Data\n3: Logout")
@@ -244,18 +289,35 @@ class Server:
                         self.db_manager.update_row("clients", "client_id", client_id,
                                                    ["total_sent_media", "total_uploaded_files", "hidden_data_files"],
                                                    [total_actions, total_uploaded_files, hidden_data_files])
-                        self.db_manager.insert_decrypted_media(client_id, media_type_id, path)
                 elif option == "2":
                     extractor = ImageExtractor(client_socket, self.db_manager, client_id)
                     media_id, media_type, path = extractor.run()
+
                     total_actions += 1
                     total_uploaded_files += 1
-                    if path:
+
+                    decoded_count = len(extractor.found_images)
+                    if decoded_count > 0:
                         hidden_data_files += 1
-                    self.db_manager.update_row("clients", "client_id", client_id,
-                                               ["total_sent_media", "total_uploaded_files", "hidden_data_files"],
-                                               [total_actions, total_uploaded_files, hidden_data_files])
-                    self.db_manager.insert_decrypted_media(client_id, media_id, path)
+                        decoded_files += decoded_count
+
+                    self.db_manager.update_row(
+                        "clients",
+                        "client_id",
+                        client_id,
+                        [
+                            "total_sent_media",
+                            "total_uploaded_files",
+                            "hidden_data_files",
+                            "decoded_files"
+                        ],
+                        [
+                            total_actions,
+                            total_uploaded_files,
+                            hidden_data_files,
+                            decoded_files
+                        ]
+                    )
                 elif option == "3":
                     self.update_gui_log(f"Client {client_id} disconnected.")
                     break
@@ -269,8 +331,13 @@ class Server:
                     current_user = self.connected_users.get(client_id)
                     if current_user and current_user["socket"] is client_socket:
                         del self.connected_users[client_id]
+
+            if login_id is not None:
+                self.db_manager.end_login_session(login_id)
+
             client_socket.close()
             self.update_client_list()
+            self.update_all_clients_list()
 
     def start_server(self):
         server_socket = socket.socket()
@@ -342,12 +409,55 @@ class Server:
         self.log_text.pack(expand=True, fill='both', padx=10, pady=5)
 
         # Create clients label
-        Label(self.root, text="MASKER Customers", font=("Arial", 14, "bold"), fg="white", bg="black").pack(pady=5)
+        # Clients connected right now
+        Label(
+            self.root,
+            text="Connected Clients",
+            font=("Arial", 14, "bold"),
+            fg="white",
+            bg="black"
+        ).pack(pady=5)
 
-        # Create client listbox
-        self.client_listbox = Listbox(self.root, bg='black', fg='white')
-        self.client_listbox.pack(expand=True, fill='both', padx=10, pady=5)
-        self.client_listbox.bind("<Double-Button-1>", lambda event: self.show_selected_client_details())
+        self.client_listbox = Listbox(
+            self.root,
+            height=6,
+            bg="black",
+            fg="white"
+        )
+        self.client_listbox.pack(
+            expand=True,
+            fill="both",
+            padx=10,
+            pady=5
+        )
+        self.client_listbox.bind(
+            "<Double-Button-1>",
+            lambda event: self.show_selected_client_details()
+        )
+
+        # Every client saved in MySQL
+        Label(
+            self.root,
+            text="All Clients",
+            font=("Arial", 14, "bold"),
+            fg="white",
+            bg="black"
+        ).pack(pady=5)
+
+        self.all_clients_listbox = Listbox(
+            self.root,
+            height=6,
+            bg="black",
+            fg="white"
+        )
+        self.all_clients_listbox.pack(
+            expand=True,
+            fill="both",
+            padx=10,
+            pady=5
+        )
+        self.update_client_list()
+        self.update_all_clients_list()
 
         # Start server in a separate thread
         threading.Thread(target=self.start_server, daemon=True).start()
