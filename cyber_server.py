@@ -40,12 +40,10 @@ class Server:
     def play_audio(self):
         pygame.mixer.init()
         audio_dir = os.path.dirname(os.path.abspath(__file__))
-        intro_audio = os.path.join(audio_dir, "intro.mp3")
-        montana_audio = os.path.join(audio_dir, "montana skies.mp3")
-        pygame.mixer.music.load(intro_audio)
+        personal_audio = os.path.join(audio_dir, "emily_audio.mp3")
+        pygame.mixer.music.load(personal_audio)
         pygame.mixer.music.play()
-        pygame.mixer.music.queue(montana_audio)
-
+        
     def update_gui_log(self, message):
         self.log_text.config(state=tk.NORMAL)
         self.log_text.insert(tk.END, message + "\n")
@@ -379,7 +377,7 @@ class Server:
 
         Label(
             splash,
-            text="Submitted by: YOUR NAME / TEAM MEMBERS",
+            text="Submitted by: Emily Groisman",
             font=("Arial", 11),
             fg="#b8c7d9",
             bg="#101820"
