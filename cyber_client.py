@@ -39,13 +39,13 @@ class Client:
         credentials = {}
 
         window = tk.Tk()
-        window.title("MASKER Authentication")
+        window.title("Image hiding system - Authentication")
         window.geometry("350x230")
         window.resizable(False, False)
 
         tk.Label(
             window,
-            text="MASKER",
+            text="Image hiding system",
             font=("Arial", 20, "bold")
         ).pack(pady=10)
 
