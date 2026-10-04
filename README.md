@@ -25,7 +25,7 @@ pip install mysql-connector-python pycryptodome Pillow pygame
 
 ## הפעלת המערכת
 
-יש לפתוח Terminal בתיקיית alin.
+יש לפתוח Terminal בתיקיית hiding_system.
 
 תחילה מפעילים את השרת:
 

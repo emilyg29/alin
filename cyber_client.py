@@ -4,7 +4,7 @@ from PIL import Image
 from constants import IP, PORT, CHUNK_SIZE
 from encrypt import Encryption
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import messagebox, filedialog, simpledialog
 
 class Client:
     def __init__(self):
@@ -29,6 +29,10 @@ class Client:
             print("Connected to server")
         except Exception as e:
             print(f"Error connecting to server: {e}")
+            messagebox.showerror(
+                "Connection Error",
+                "Could not connect to the server. Please start the server and try again."
+            )
             self.client_socket = None
 
     def choose_authentication(self):
@@ -117,6 +121,13 @@ class Client:
             response = self.encryptor.receive_encrypted_message(
                 self.client_socket
             )
+            if "|" not in response:
+                messagebox.showerror(
+                    "Authentication Error",
+                    "The server returned an invalid authentication response."
+                )
+                return False
+
             status, message = response.split("|", 1)
 
             if status == "LOGIN_SUCCESS":
@@ -138,6 +149,65 @@ class Client:
                 )
 
 
+    def choose_main_option(self):
+        """Show the main actions in a graphical window."""
+        selected = {"option": None}
+
+        window = tk.Tk()
+        window.title("MASKER - Main Menu")
+        window.geometry("420x330")
+        window.configure(bg="#101820")
+        window.resizable(False, False)
+
+        def choose(option):
+            selected["option"] = option
+            window.destroy()
+
+        window.protocol("WM_DELETE_WINDOW", lambda: choose("3"))
+
+        tk.Label(
+            window,
+            text="MASKER",
+            font=("Arial", 26, "bold"),
+            fg="#00d9ff",
+            bg="#101820"
+        ).pack(pady=(25, 5))
+
+        tk.Label(
+            window,
+            text="Choose an action",
+            font=("Arial", 14),
+            fg="white",
+            bg="#101820"
+        ).pack(pady=(0, 20))
+
+        tk.Button(
+            window,
+            text="Hide Data",
+            width=24,
+            height=2,
+            command=lambda: choose("1")
+        ).pack(pady=7)
+
+        tk.Button(
+            window,
+            text="Decode Data",
+            width=24,
+            height=2,
+            command=lambda: choose("2")
+        ).pack(pady=7)
+
+        tk.Button(
+            window,
+            text="Logout",
+            width=24,
+            height=2,
+            command=lambda: choose("3")
+        ).pack(pady=7)
+
+        window.mainloop()
+        return selected["option"]
+    
     def receive_menu(self):
         try:
             menu = self.encryptor.receive_encrypted_message(self.client_socket)
@@ -156,7 +226,10 @@ class Client:
         )
 
         if "No media options available." in media_menu:
-            print("No media options available. Returning to menu.")
+            messagebox.showinfo(
+                "Hide Data",
+                "No cover images are available."
+            )
             return
 
         print("\nAvailable media to hide data in:\n")
@@ -169,17 +242,34 @@ class Client:
         }
 
         while True:
-            selected_media_id = input(
-                "Choose media ID: "
-            ).strip()
+            selected_media_id = simpledialog.askstring(
+                "Choose Cover Image",
+                f"Choose the cover image that will hide the secret image:\n\n{media_menu}\n\nEnter cover image ID:"
+            )
+
+            if selected_media_id is None:
+                self.encryptor.send_encrypted_message(
+                    self.client_socket,
+                    "CANCEL"
+                )
+                messagebox.showinfo(
+                    "Hide Data",
+                    "Operation cancelled."
+                )
+                return
+
+            selected_media_id = selected_media_id.strip()
 
             if selected_media_id in valid_media_ids:
                 break
 
-            print("Invalid media ID. Choose an option from the menu.")
+            messagebox.showerror(
+                "Invalid Selection",
+                "Please choose a valid media ID from the list."
+            )
 
         data_to_hide_path = filedialog.askopenfilename(
-            title="Choose a JPEG image to hide",
+            title="Choose the secret JPEG image to hide inside the cover",
             initialdir=os.path.dirname(os.path.abspath(__file__)),
             filetypes=[
                 ("JPEG images", "*.jpg *.jpeg")
@@ -194,7 +284,10 @@ class Client:
                 self.client_socket,
                 "CANCEL"
             )
-            print("Hide operation cancelled. Returning to menu.")
+            messagebox.showinfo(
+                "Hide Data",
+                "Operation cancelled."
+            )
             return
 
         print("Data to hide:", data_to_hide_path)
@@ -222,19 +315,15 @@ class Client:
         )
         print(response)
 
-        hidden_media_path = response.split("in ")[-1].strip()
-
-        if os.path.exists(hidden_media_path):
-            try:
-                img = Image.open(hidden_media_path)
-                img.show()
-            except Exception as e:
-                print(f"Error opening the hidden media: {e}")
+        messagebox.showinfo(
+            "Hide Data Completed",
+            response
+        )
 
     def handle_decode_option(self):
         print("\nYou chose to decode data.")
         media_path = filedialog.askopenfilename(
-            title="Choose a file to decode",
+            title="Choose a hidden JPEG file to decode",
             initialdir=os.path.dirname(os.path.abspath(__file__)),
             filetypes=[
                 ("JPEG images", "*.jpg *.jpeg")
@@ -242,13 +331,27 @@ class Client:
         )
 
         if not media_path:
-            print("No file was selected. Returning to menu.")
+            self.encryptor.send_encrypted_message(
+                self.client_socket,
+                "CANCEL"
+            )
+            messagebox.showinfo(
+                "Decode Data",
+                "No file was selected. Operation cancelled."
+            )
             return
 
         print("File chosen for decoding:", media_path)
 
         if not os.path.exists(media_path):
-            print("File does not exist. Returning to menu.")
+            self.encryptor.send_encrypted_message(
+                self.client_socket,
+                "CANCEL"
+            )
+            messagebox.showerror(
+                "Decode Data",
+                "The selected file does not exist."
+            )
             return
 
         with open(media_path, "rb") as file:
@@ -256,13 +359,15 @@ class Client:
 
         # Send length encrypted
         self.encryptor.send_encrypted_message(self.client_socket, str(len(data)))
-
-        # Send raw binary data (unencrypted)
-        self.encryptor.send_encrypted_message(self.client_socket, data)
+        
+        # Send binary data through the encrypted connection
+        self.encryptor.send_encrypted_data(self.client_socket, data)
 
         # Receive results
         num_images = int(self.encryptor.receive_encrypted_message(self.client_socket))
         print(f"Found {num_images} hidden images.")
+
+        decoded_paths = []
 
         for i in range(num_images):
             image_size = int(self.encryptor.receive_encrypted_message(self.client_socket))
@@ -270,17 +375,36 @@ class Client:
 
             image_data = self.encryptor.receive_encrypted_data(self.client_socket)
 
-            decoded_file_path = f"decoded_image_{i + 1}.jpg"
+            decoded_file_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                f"decoded_image_{i + 1}.jpg"
+            )
             with open(decoded_file_path, "wb") as file:
                 file.write(image_data)
 
             print(f"Decoded image saved at {decoded_file_path}")
-            if os.path.exists(decoded_file_path):
-                try:
-                    img = Image.open(decoded_file_path)
-                    img.show()
-                except Exception as e:
-                    print(f"Error opening the decoded image: {e}")
+            decoded_paths.append(decoded_file_path)
+
+        if not decoded_paths:
+            messagebox.showwarning(
+                "Decode Data",
+                "No hidden JPEG image was found in the selected file."
+            )
+            return
+
+        messagebox.showinfo(
+            "Decode Completed",
+            f"Successfully decoded {len(decoded_paths)} hidden image(s)."
+        )
+
+        for decoded_file_path in decoded_paths:
+            try:
+                Image.open(decoded_file_path).show()
+            except Exception as e:
+                messagebox.showerror(
+                    "Decode Data",
+                    f"The decoded image was saved, but could not be opened:\n{e}"
+                )
 
     def run(self):
         self.connect_to_server()
@@ -300,9 +424,7 @@ class Client:
             if not menu:
                 break
 
-            option = input(
-                "Choose option (1 = Hide, 2 = Decode, 3 = Logout): "
-            ).strip()
+            option = self.choose_main_option()
             self.encryptor.send_encrypted_message(self.client_socket, option)
 
             if option == "1":

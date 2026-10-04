@@ -152,7 +152,7 @@ class Server:
             ).hexdigest()
 
             cursor = self.db_manager.conn.cursor()
-            cursor.execute("SELECT user_id, password_hash FROM users WHERE username_hash = %s", (username_hash,))
+            cursor.execute("SELECT client_id, password_hash FROM clients WHERE username_hash = %s", (username_hash,))
             user = cursor.fetchone()
 
             if action == "REGISTER":
@@ -163,9 +163,12 @@ class Server:
                 password_hash = hashlib.pbkdf2_hmac(
                     "sha256", password.encode(), salt.encode(), 120000
                 ).hex()
+                cursor.execute("SELECT COALESCE(MAX(client_id), 0) + 1 FROM clients")
+                new_client_id = cursor.fetchone()[0]
+
                 cursor.execute(
-                    "INSERT INTO users (username_hash, password_hash) VALUES (%s, %s)",
-                    (username_hash, f"{salt}${password_hash}")
+                    "INSERT INTO clients (client_id, username_hash, password_hash) VALUES (%s, %s, %s)",
+                    (new_client_id, username_hash, f"{salt}${password_hash}")
                 )
                 self.db_manager.conn.commit()
                 self.encryptor.send_encrypted_message(
@@ -291,7 +294,11 @@ class Server:
                         self.update_all_clients_list()
                 elif option == "2":
                     extractor = ImageExtractor(client_socket, self.db_manager, client_id)
-                    media_id, media_type, path = extractor.run()
+                    result = extractor.run()
+                    if result is None:
+                        continue
+
+                    media_id, media_type, path = result
 
                     total_actions += 1
                     total_uploaded_files += 1
@@ -361,19 +368,11 @@ class Server:
 
         Label(
             splash,
-            text="MASKER",
-            font=("Arial", 30, "bold"),
+            text="Image hiding system",
+            font=("Arial", 26, "bold"),
             fg="#00d9ff",
             bg="#101820"
         ).pack(pady=(45, 10))
-
-        Label(
-            splash,
-            text="Secure Media Hiding System",
-            font=("Arial", 15),
-            fg="white",
-            bg="#101820"
-        ).pack(pady=5)
 
         Label(
             splash,

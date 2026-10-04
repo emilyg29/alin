@@ -28,7 +28,11 @@ class ImageExtractor:
 
         :return: binary data of the received media file
         """
-        media_size = int(self.encryptor.receive_encrypted_message(self.client_socket))
+        size_message = self.encryptor.receive_encrypted_message(self.client_socket)
+        if size_message == "CANCEL":
+            return None
+
+        media_size = int(size_message)
         media_data = b''
 
         while len(media_data) < media_size:
@@ -110,6 +114,9 @@ class ImageExtractor:
         :return: (media_type_id, media_type, first_output_path) tuple
         """
         media_data = self.receive_media()
+        if media_data is None:
+            return None
+
         temp_path = self.save_temp_file(media_data)
         self.extract_images(media_data)
         self.send_results()

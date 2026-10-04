@@ -27,7 +27,7 @@ Submitted by: Emily Groisman
 
 7. מהו ה-Splash Screen שנוסף
 
-נוסף מסך פתיחה בעיצוב אישי הכולל את שם הפרויקט MASKER, תיאור המערכת Secure Media Hiding System, שם המגישה Emily Groisman והגרסה Version 1.0. המסך מוצג לפני פתיחת מסך השרת.
+נוסף מסך פתיחה בעיצוב אישי הכולל את הכותרת Image hiding system, שם המגישה Emily Groisman והגרסה Version 1.0. המסך מוצג לפני פתיחת מסך השרת.
 
 8. מהו ה-Audio שנוסף
 
