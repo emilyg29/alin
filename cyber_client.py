@@ -154,7 +154,7 @@ class Client:
         selected = {"option": None}
 
         window = tk.Tk()
-        window.title("MASKER - Main Menu")
+        window.title("Image hiding system - Main Menu")
         window.geometry("420x330")
         window.configure(bg="#101820")
         window.resizable(False, False)
@@ -167,7 +167,7 @@ class Client:
 
         tk.Label(
             window,
-            text="MASKER",
+            text="Image hiding system",
             font=("Arial", 26, "bold"),
             fg="#00d9ff",
             bg="#101820"
